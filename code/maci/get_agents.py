@@ -52,7 +52,7 @@ def masql_agent(model_name, i, env, M, u_range, base_kwargs, game_name='matrix')
         save_full_state=False)
     return agent
 
-def get_level_k_policy(env, k, M, agent_id, u_range, opponent_conditional_policy, game_name='matrix'):
+def get_level_k_policy(env, k, M, agent_id, u_range, opponent_conditional_policy, game_name='pbeauty'):
     urange = [-1, 1.]
     if_softmax = False
     if 'particle' in game_name:

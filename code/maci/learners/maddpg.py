@@ -110,20 +110,22 @@ class MADDPG(MARLAlgorithm):
             self.policy.set_param_values(saved_policy_params)
 
     def _create_placeholders(self):
-        """Create all necessary placeholders."""
+        """Create all necessary TensorFlow placeholders for observations, actions, rewards, and terminals."""
 
         self._observations_ph = tf.placeholder(
             tf.float32,
             shape=[None, self._observation_dim],
             name='observations_agent_{}'.format(self._agent_id))
-
+        
         self._next_observations_ph = tf.placeholder(
             tf.float32,
             shape=[None, self._observation_dim],
             name='next_observations_agent_{}'.format(self._agent_id))
+        
         self._actions_pl = tf.placeholder(
             tf.float32, shape=[None, self._action_dim],
             name='actions_agent_{}'.format(self._agent_id))
+        
         self._next_actions_ph = tf.placeholder(
             tf.float32, shape=[None, self._action_dim],
             name='next_actions_agent_{}'.format(self._agent_id))
@@ -132,6 +134,7 @@ class MADDPG(MARLAlgorithm):
             self._opponent_actions_pl = tf.placeholder(
                 tf.float32, shape=[None, self._opponent_action_dim],
                 name='opponent_actions_agent_{}'.format(self._agent_id))
+            
             self._opponent_next_actions_ph = tf.placeholder(
                 tf.float32, shape=[None, self._opponent_action_dim],
                 name='opponent_next_actions_agent_{}'.format(self._agent_id))
@@ -140,6 +143,7 @@ class MADDPG(MARLAlgorithm):
             self._recent_opponent_observations_ph = tf.placeholder(
                 tf.float32,shape=[None, self._observation_dim],
                 name='recent_opponent_observations_agent_{}'.format(self._agent_id))
+            
             self._recent_opponent_actions_pl = tf.placeholder(
                 tf.float32, shape=[None, self._opponent_action_dim],
                 name='recent_opponent_actions_agent_{}'.format(self._agent_id))

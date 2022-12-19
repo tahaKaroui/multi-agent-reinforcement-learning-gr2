@@ -107,16 +107,16 @@ lockfile==0.12.2
 lz4==2.1.6
 Mako==1.0.7
 Markdown==3.0.1
-MarkupSafe==1.0
+MarkupSafe==1.1.1
 marshmallow==2.16.3
 matplotlib==3.0.0
 mccabe==0.6.1
 mistune==0.8.4
 more-itertools==4.3.0
-mpi4py==3.0.0
-mujoco-py==1.50.1.68
+mpi4py==3.0.1
+#mujoco-py==1.50.1.68
 -e git+https://github.com/openai/multiagent-particle-envs.git@6ed7cac026f0eb345d4c20232bafa1dc951c68e7#egg=multiagent
-multiworld==0.0.0
+#multiworld==0.0.0
 nbconvert==5.4.0
 nbformat==4.4.0
 networkx==2.2

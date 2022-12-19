@@ -117,7 +117,7 @@ class MASAC(RLAlgorithm, Serializable):
 
             pool (`PoolBase`): Replay buffer to add gathered samples to.
             plotter (`QFPolicyPlotter`): Plotter instance to be used for
-                visualizing Q-function during trai.ning.
+                visualizing Q-function during training.
 
             lr (`float`): Learning rate used for the function approximators.
             discount (`float`): Discount factor for Q-function updates.

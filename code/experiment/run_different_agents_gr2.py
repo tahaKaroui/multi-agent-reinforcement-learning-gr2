@@ -19,6 +19,7 @@ import tensorflow as tf
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
 sess = tf.Session(config=config)
+#specifies which session keras should use
 set_session(sess)
 
 
@@ -36,7 +37,9 @@ def get_particle_game(particle_game_name, arglist):
     return env, agent_num, model_name, model_names
 
 def parse_args():
-    parser = argparse.ArgumentParser("Reinforcement Learning experiments for multiagent environments")
+    """Meant for arguments coming from a CLI """
+    
+    parser = argparse.ArgumentParser("Reinforcement Learning experiments for multi-agent environments")
     # Environment
     # ['particle-simple_spread', 'particle-simple_adversary', 'particle-simple_tag', 'particle-simple_push']
     # matrix-prison , matrix-prison
@@ -45,17 +48,13 @@ def parse_args():
     parser.add_argument('-p', "--p", type=float, default=1.1, help="p")
     parser.add_argument('-mu', "--mu", type=float, default=1.5, help="mu")
     parser.add_argument('-r', "--reward_type", type=str, default="abs", help="reward type")
-    parser.add_argument('-mp', "--max_path_length", type=int, default=1, help="reward type")
-<<<<<<< HEAD
-    parser.add_argument('-ms', "--max_steps", type=int, default=10000, help="reward type")
-=======
-    parser.add_argument('-ms', "--max_steps", type=int, default=20000, help="reward type")
->>>>>>> b5b4e95f91f592911679eca78671ebe723447db6
-    parser.add_argument('-me', "--memory", type=int, default=0, help="reward type")
-    parser.add_argument('-n', "--n", type=int, default=10, help="name of the game")
-    parser.add_argument('-bs', "--batch_size", type=int, default=64, help="name of the game")
-    parser.add_argument('-hm', "--hidden_size", type=int, default=100, help="name of the game")
-    parser.add_argument('-re', "--repeat", type=bool, default=False, help="name of the game")
+    parser.add_argument('-mp', "--max_path_length", type=int, default=1, help="path len")
+    parser.add_argument('-ms', "--max_steps", type=int, default=2000, help="number of epochs")
+    parser.add_argument('-me', "--memory", type=int, default=0, help="memory")
+    parser.add_argument('-n', "--n", type=int, default=10, help="number of agents")
+    parser.add_argument('-bs', "--batch_size", type=int, default=64, help="batch size")
+    parser.add_argument('-hm', "--hidden_size", type=int, default=100, help="hidden size")
+    parser.add_argument('-re', "--repeat", type=bool, default=False, help="repeat or not")
     parser.add_argument('-a', "--aux", type=bool, default=True, help="name of the game")
     parser.add_argument('-m', "--model_names_setting", type=str, default='PR2AC4_PR2AC4', help="models setting agent vs adv")
     return parser.parse_args()
@@ -111,6 +110,7 @@ def main(arglist):
 
     agents = []
     M = arglist.hidden_size
+    # the batch size refers to the number of samples or experiences used in each iteration of training the agent.
     batch_size = arglist.batch_size
     sampler = MASampler(agent_num=agent_num, joint=True, max_path_length=30, min_pool_size=100, batch_size=batch_size)
 

@@ -92,6 +92,7 @@ class DeterministicNNPolicy(NNPolicy, Serializable):
 
     def get_actions(self, observations):
         feeds = {self._observation_ph: observations}
+        # can be used to specify options for the run, such as the target device to use for execution.
         actions = tf.get_default_session().run(self._action, feeds)
         return np.clip(actions + self._u_range * self.noise_level * self.evolve_noise_state(), -self._u_range, self._u_range)
 
