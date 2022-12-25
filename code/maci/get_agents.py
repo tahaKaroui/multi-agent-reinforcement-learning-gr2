@@ -53,6 +53,8 @@ def masql_agent(model_name, i, env, M, u_range, base_kwargs, game_name='matrix')
     return agent
 
 def get_level_k_policy(env, k, M, agent_id, u_range, opponent_conditional_policy, game_name='pbeauty'):
+    """Return a level-k policy and its target copy for the given agent."""
+
     urange = [-1, 1.]
     if_softmax = False
     if 'particle' in game_name:
@@ -109,7 +111,7 @@ def pr2ac_agent(model_name, i, env, M, u_range, base_kwargs, k=0, g=False, mu=1.
     opponent_conditional_policy = StochasticNNConditionalPolicy(env.env_specs,
                                                        hidden_layer_sizes=(M, M),
                                                        name='opponent_conditional_policy',
-                                                       squash=squash, squash_func=squash_func,sampling=sampling, u_range=u_range, joint=joint,
+                                                       squash=squash, squash_func=squash_func, sampling=sampling, u_range=u_range, joint=joint,
                                                        agent_id=i)
 
     if g:
@@ -125,13 +127,13 @@ def pr2ac_agent(model_name, i, env, M, u_range, base_kwargs, k=0, g=False, mu=1.
         if k == 0:
             policy = DeterministicNNPolicy(env.env_specs,
                                            hidden_layer_sizes=(M, M),
-                                           squash=squash, squash_func=squash_func, sampling=sampling,u_range=u_range, joint=False,
-                                           agent_id=i)
+                                           squash=squash, squash_func=squash_func, sampling=sampling, u_range=u_range,
+                                           joint=False, agent_id=i)
             target_policy = DeterministicNNPolicy(env.env_specs,
                                                   hidden_layer_sizes=(M, M),
                                                   name='target_policy',
-                                                  squash=squash, squash_func=squash_func, sampling=sampling,u_range=u_range, joint=False,
-                                                  agent_id=i)
+                                                  squash=squash, squash_func=squash_func, sampling=sampling,
+                                                  u_range=u_range, joint=False, agent_id=i)
         if k > 0:
             policy, target_policy = get_level_k_policy(env, k, M, i, u_range, opponent_conditional_policy, game_name=game_name)
 

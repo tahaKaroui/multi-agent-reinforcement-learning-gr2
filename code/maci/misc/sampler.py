@@ -154,6 +154,7 @@ class SimpleSampler(Sampler):
 
 
 class MASampler(SimpleSampler):
+    """Multi-agent sampler that collects transitions from a cluster-structured environment."""
     def __init__(self, agent_num, joint, **kwargs):
         super(SimpleSampler, self).__init__(**kwargs)
         self.agent_num = agent_num

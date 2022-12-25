@@ -214,7 +214,7 @@ class ConditionalDeterministicNNPolicy(NNPolicy, Serializable):
     
 
 class DeterministicToMNNPolicy(NNPolicy, Serializable):
-    """Deterministic neural network policy."""
+    """Deterministic policy that conditions on inferred opponent actions."""
 
     def __init__(self,
                  env_spec=None,
@@ -254,7 +254,7 @@ class DeterministicToMNNPolicy(NNPolicy, Serializable):
         self._layer_sizes = list(hidden_layer_sizes) + [self._action_dim]
         self._squash = squash
         self._squash_func = squash_func
-        self.opponent_act_policy=opponent_act_policy
+        self.opponent_act_policy = opponent_act_policy
         self.agent_id = agent_id
         self._u_range = u_range
         self.shift = shift
@@ -315,5 +315,8 @@ class DeterministicToMNNPolicy(NNPolicy, Serializable):
 
         if (self.shift is not None) and (self.scale is not None) and self._squash:
             tf.scalar_mul(self.scale, self._squash_func(raw_actions) + self.shift)
+
+        if not self._squash:
+        else:
 
         return tf.scalar_mul(self._u_range, self._squash_func(raw_actions)) if self._squash else tf.clip_by_value(raw_actions, -self._u_range, self._u_range)

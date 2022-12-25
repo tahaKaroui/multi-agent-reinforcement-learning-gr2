@@ -55,7 +55,7 @@ def parse_args():
     parser.add_argument('-bs', "--batch_size", type=int, default=64, help="batch size")
     parser.add_argument('-hm', "--hidden_size", type=int, default=100, help="hidden size")
     parser.add_argument('-re', "--repeat", type=bool, default=False, help="repeat or not")
-    parser.add_argument('-a', "--aux", type=bool, default=True, help="name of the game")
+    parser.add_argument('-a', "--aux", type=bool, default=True, help="")
     parser.add_argument('-m', "--model_names_setting", type=str, default='PR2AC4_PR2AC4', help="models setting agent vs adv")
     return parser.parse_args()
 
