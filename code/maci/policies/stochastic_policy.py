@@ -92,7 +92,7 @@ class StochasticNNPolicy(NNPolicy, Serializable):
 
 
 class StochasticNNConditionalPolicy(NNPolicy, Serializable):
-    """Stochastic neural network policy."""
+    """Stochastic policy conditioned on the agent's own action to model opponent behavior."""
 
     def __init__(self,
                  env_spec=None,
@@ -179,4 +179,3 @@ class StochasticNNConditionalPolicy(NNPolicy, Serializable):
         return tf.scalar_mul(self._u_range, self._squash_func(raw_actions)) if self._squash else tf.clip_by_value(raw_actions,
                                                                                                         -self._u_range,
                                                                                                         self._u_range)
-

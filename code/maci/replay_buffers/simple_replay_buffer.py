@@ -7,7 +7,9 @@ from maci.environments.env_spec import MAEnvSpec
 
 
 class SimpleReplayBuffer(ReplayBuffer, Serializable):
+    """Replay buffer storing experience transitions for single and multi-agent RL."""
     def __init__(self, env_spec, max_replay_buffer_size, joint=False, agent_id=None):
+
         super(SimpleReplayBuffer, self).__init__()
         Serializable.quick_init(self, locals())
 
@@ -43,6 +45,7 @@ class SimpleReplayBuffer(ReplayBuffer, Serializable):
 
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
+
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
@@ -61,6 +64,7 @@ class SimpleReplayBuffer(ReplayBuffer, Serializable):
             self._size += 1
 
     def random_batch(self, batch_size):
+
         self.indices = np.random.randint(0, self._size, batch_size)
         batch = dict(
             observations=self._observations[self.indices],
@@ -74,6 +78,7 @@ class SimpleReplayBuffer(ReplayBuffer, Serializable):
         return batch
 
     def random_batch_by_indices(self, indices):
+
         batch = dict(
             observations=self._observations[indices],
             actions=self._actions[indices],

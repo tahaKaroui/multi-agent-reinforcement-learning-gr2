@@ -211,15 +211,15 @@ def main(arglist):
                     batch_n = []
                     recent_batch_n = []
                     indices = None
-                    receent_indices = None
+                    recent_indices = None
                     for i, agent in enumerate(agents):
                         if i == 0:
                             batch = agent.pool.random_batch(batch_size)
                             indices = agent.pool.indices
-                            receent_indices = list(range(agent.pool._top-batch_size, agent.pool._top))
+                            recent_indices = list(range(agent.pool._top-batch_size, agent.pool._top))
 
                         batch_n.append(agent.pool.random_batch_by_indices(indices))
-                        recent_batch_n.append(agent.pool.random_batch_by_indices(receent_indices))
+                        recent_batch_n.append(agent.pool.random_batch_by_indices(recent_indices))
 
                     target_next_actions_n = []
                     try:
@@ -228,7 +228,6 @@ def main(arglist):
                     except:
                         pass
 
-
                     opponent_actions_n = np.array([batch['actions'] for batch in batch_n])
                     recent_opponent_actions_n = np.array([batch['actions'] for batch in recent_batch_n])
 
@@ -236,7 +235,6 @@ def main(arglist):
                     recent_opponent_observations_n = []
                     for batch in recent_batch_n:
                         recent_opponent_observations_n.append(batch['observations'])
-
 
                     current_actions = [agents[i]._policy.get_actions(batch_n[i]['next_observations'])[0][0] for i in range(agent_num)]
                     all_actions_k = []

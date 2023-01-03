@@ -44,6 +44,18 @@ class UniformPolicy(Policy, Serializable):
         n_state_samples = tf.shape(observations)[0]
         action_shape = (n_state_samples, self._action_dim)
         actions = tf.random_uniform(action_shape, self._urange[0], self._urange[1])
+        # temp_array = actions.eval()
+        # Create a TensorFlow session
+        #sess = tf.Session()
+
+        # Access the values of the tensor as a NumPy array
+        #values = sess.run(actions)
+
+        #print(values)  # Output: [[1 2 3 4] [5 6 7 8] [9 10 11 12]]
+
+        # Close the session
+        #sess.close()
+
         if not self._if_softmax:
             return actions
         else:
