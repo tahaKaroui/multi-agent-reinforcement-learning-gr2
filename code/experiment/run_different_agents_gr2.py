@@ -131,8 +131,10 @@ def main(arglist):
     }
 
     with U.single_threaded_session():
+        i = -1
         for model in model_names:
-            for i, model_name in enumerate(model):
+            i += 1
+            for model_name in model:
                 if 'PR2AC' in model_name:
                     cluster = "level-k"
                     if cluster not in agents.keys():
@@ -159,7 +161,7 @@ def main(arglist):
                         cluster = "maddpg"
                         if cluster not in agents.keys():
                             agents[cluster] = []
-                        joint = False
+                        joint = True
                         opponent_modelling = False
                     elif model_name == 'DDPG-OM' or model_name == 'DDPG-ToM':
                         cluster = "ddpg-om_ddpg-tom"
