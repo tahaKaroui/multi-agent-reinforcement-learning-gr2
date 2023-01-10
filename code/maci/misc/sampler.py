@@ -171,15 +171,18 @@ class MASampler(SimpleSampler):
         self.agents = None
 
     def set_policy(self, policies):
-        for agent, policy in zip(self.agents, policies):
+        cluster_agents = [agent for cluster in self.agents.values() for agent in cluster]
+        for agent, policy in zip(cluster_agents, policies):
             agent.policy = policy
 
     def batch_ready(self):
-        enough_samples = self.agents[0].pool.size >= self._min_pool_size
+        cluster_agents = [agent for cluster in self.agents.values() for agent in cluster]
+        enough_samples = cluster_agents[0].pool.size >= self._min_pool_size
         return enough_samples
 
     def random_batch(self, i):
-        return self.agents[i].pool.random_batch(self._batch_size)
+        cluster_agents = [agent for cluster in self.agents.values() for agent in cluster]
+        return cluster_agents[i].pool.random_batch(self._batch_size)
 
     def initialize(self, env, agents):
         self._current_observation_n = None
@@ -190,7 +193,8 @@ class MASampler(SimpleSampler):
         if self._current_observation_n is None:
             self._current_observation_n = self.env.reset()
         action_n = []
-        for agent, current_observation in zip(self.agents, self._current_observation_n):
+        cluster_agents = [agent for cluster in self.agents.values() for agent in cluster]
+        for agent, current_observation in zip(cluster_agents, self._current_observation_n):
             action, _ = agent.policy.get_action(current_observation)
             if agent.joint_policy:
                 action_n.append(np.array(action)[0:agent._action_dim])
@@ -201,24 +205,27 @@ class MASampler(SimpleSampler):
         self._path_return += np.array(reward_n, dtype=np.float32)
         self._total_samples += 1
 
-        for i, agent in enumerate(self.agents):
-            action = deepcopy(action_n[i])
-            if agent.pool.joint:
-                opponent_action = deepcopy(action_n)
-                del opponent_action[i]
-                opponent_action = np.array(opponent_action).flatten()
-                agent.pool.add_sample(observation=self._current_observation_n[i],
-                                      action=action,
-                                      reward=reward_n[i],
-                                      terminal=done_n[i],
-                                      next_observation=next_observation_n[i],
-                                      opponent_action=opponent_action)
-            else:
-                agent.pool.add_sample(observation=self._current_observation_n[i],
-                                      action=action,
-                                      reward=reward_n[i],
-                                      terminal=done_n[i],
-                                      next_observation=next_observation_n[i])
+        i = -1
+        for cluster_agents in self.agents.values():
+            for agent in cluster_agents:
+                i += 1
+                action = deepcopy(action_n[i])
+                if agent.pool.joint:
+                    opponent_action = deepcopy(action_n)
+                    del opponent_action[i]
+                    opponent_action = np.array(opponent_action).flatten()
+                    agent.pool.add_sample(observation=self._current_observation_n[i],
+                                          action=action,
+                                          reward=reward_n[i],
+                                          terminal=done_n[i],
+                                          next_observation=next_observation_n[i],
+                                          opponent_action=opponent_action)
+                else:
+                    agent.pool.add_sample(observation=self._current_observation_n[i],
+                                          action=action,
+                                          reward=reward_n[i],
+                                          terminal=done_n[i],
+                                          next_observation=next_observation_n[i])
 
         if np.all(done_n) or self._path_length >= self._max_path_length:
             self._current_observation_n = self.env.reset()

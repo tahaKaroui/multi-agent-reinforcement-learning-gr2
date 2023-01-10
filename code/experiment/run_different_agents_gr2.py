@@ -51,12 +51,13 @@ def parse_args():
     parser.add_argument('-mp', "--max_path_length", type=int, default=1, help="path len")
     parser.add_argument('-ms', "--max_steps", type=int, default=2000, help="number of epochs")
     parser.add_argument('-me', "--memory", type=int, default=0, help="memory")
-    parser.add_argument('-n', "--n", type=int, default=10, help="number of agents")
+    parser.add_argument('-n', "--n", type=int, default=3, help="number of agents per cluster")
     parser.add_argument('-bs', "--batch_size", type=int, default=64, help="batch size")
     parser.add_argument('-hm', "--hidden_size", type=int, default=100, help="hidden size")
     parser.add_argument('-re', "--repeat", type=bool, default=False, help="repeat or not")
     parser.add_argument('-a', "--aux", type=bool, default=True, help="")
-    parser.add_argument('-m', "--model_names_setting", type=str, default='PR2AC4_PR2AC4', help="models setting agent vs adv")
+    parser.add_argument('-m', "--model_names_setting", type=str, default='PR2AC4_PR2AC3_PR2AC2-MADDPG_MADDPG_MADDPG', help="models setting agent vs adv")
+    parser.add_argument('-c', "--number_of_clusters", type=int, default='1', help="number of clusters")
     return parser.parse_args()
 
 
@@ -65,17 +66,22 @@ def main(arglist):
     # 'abs', 'one'
     reward_type = arglist.reward_type
     p = arglist.p
-    agent_num = arglist.n
+    agent_num = len(arglist.model_names_setting.split('-')) * arglist.n
     u_range = 1.
     k = 0
+    clusters = arglist.number_of_clusters if arglist.number_of_clusters > 1 else 2
     print(arglist.aux, 'arglist.aux')
-    model_names_setting = arglist.model_names_setting.split('_')
-    model_names = [model_names_setting[0]] + [model_names_setting[1]] * (agent_num - 1)
-    model_name = '_'.join(model_names)
+    model_names_setting_clusters = arglist.model_names_setting.split('-')
+    model_names = [i.split('_') for i in model_names_setting_clusters]
+    model_name = ""
+    for j, i in enumerate(model_names):
+        model_name = model_name + '_'.join(i)
+        if j < len(model_names) - 1:
+            model_name += '_'
     path_prefix = game_name
     if game_name == 'pbeauty':
         env = PBeautyGame(agent_num=agent_num, reward_type=reward_type, p=p)
-        path_prefix  = game_name + '-' + reward_type + '-' + str(p)
+        path_prefix = game_name + '-' + reward_type + '-' + str(p)
     elif 'matrix' in game_name:
         matrix_game_name = game_name.split('-')[-1]
         repeated = arglist.repeat
@@ -108,7 +114,8 @@ def main(arglist):
     os.makedirs(policy_dir, exist_ok=True)
     logger.set_snapshot_dir(snapshot_dir)
 
-    agents = []
+
+    agents = dict()
     M = arglist.hidden_size
     # the batch size refers to the number of samples or experiences used in each iteration of training the agent.
     batch_size = arglist.batch_size
@@ -124,34 +131,51 @@ def main(arglist):
     }
 
     with U.single_threaded_session():
-        for i, model_name in enumerate(model_names):
-            if 'PR2AC' in model_name:
-                k = int(model_name[-1])
-                g = False
-                mu = arglist.mu
-                if 'G' in model_name:
-                    g = True
-                agent = pr2ac_agent(model_name, i, env, M, u_range, base_kwargs, k=k, g=g, mu=mu, game_name=game_name, aux=arglist.aux)
-            elif model_name == 'MASQL':
-                agent = masql_agent(model_name, i, env, M, u_range, base_kwargs, game_name=game_name)
-            else:
-                if model_name == 'DDPG':
-                    joint = False
-                    opponent_modelling = False
-                elif model_name == 'MADDPG':
-                    joint = True
-                    opponent_modelling = False
-                elif model_name == 'DDPG-OM' or model_name == 'DDPG-ToM':
-                    joint = True
-                    opponent_modelling = True
-                agent = ddpg_agent(joint, opponent_modelling, model_names, i, env, M, u_range, base_kwargs, game_name=game_name)
+        for model in model_names:
+            for i, model_name in enumerate(model):
+                if 'PR2AC' in model_name:
+                    cluster = "level-k"
+                    if cluster not in agents.keys():
+                        agents[cluster] = []
+                    k = int(model_name[-1])
+                    g = False
+                    mu = arglist.mu
+                    if 'G' in model_name:
+                        g = True
+                    agent = pr2ac_agent(model_name, i, env, M, u_range, base_kwargs, k=k, g=g, mu=mu, game_name=game_name, aux=arglist.aux)
+                elif model_name == 'MASQL':
+                    cluster = "masql"
+                    if cluster not in agents.keys():
+                        agents[cluster] = []
+                    agent = masql_agent(model_name, i, env, M, u_range, base_kwargs, game_name=game_name)
+                else:
+                    if model_name == 'DDPG':
+                        cluster = "ddpg"
+                        if cluster not in agents.keys():
+                            agents[cluster] = []
+                        joint = False
+                        opponent_modelling = False
+                    elif model_name == 'MADDPG':
+                        cluster = "maddpg"
+                        if cluster not in agents.keys():
+                            agents[cluster] = []
+                        joint = False
+                        opponent_modelling = False
+                    elif model_name == 'DDPG-OM' or model_name == 'DDPG-ToM':
+                        cluster = "ddpg-om_ddpg-tom"
+                        if cluster not in agents.keys():
+                            agents[cluster] = []
+                        joint = True
+                        opponent_modelling = True
+                    agent = ddpg_agent(joint, opponent_modelling, model_names, i, env, M, u_range, base_kwargs, game_name=game_name)
 
-            agents.append(agent)
+                agents[cluster].append(agent)
 
         sampler.initialize(env, agents)
 
-        for agent in agents:
-            agent._init_training()
+        for cluster_agents in agents.values():
+            for agent in cluster_agents:
+                agent._init_training()
         gt.rename_root('MARLAlgorithm')
         gt.reset()
         gt.set_def_unique(False)
@@ -160,11 +184,12 @@ def main(arglist):
         alpha = .5
 
 
-        for agent in agents:
-            try:
-                agent.policy.set_noise_level(noise)
-            except:
-                pass
+        for cluster_agents in agents.values():
+            for agent in cluster_agents:
+                try:
+                    agent.policy.set_noise_level(noise)
+                except:
+                    pass
 
         for epoch in gt.timed_for(range(base_kwargs['n_epochs'] + 1)):
             logger.push_prefix('Epoch #%d | ' % epoch)
@@ -180,50 +205,58 @@ def main(arglist):
                 if epoch == base_kwargs['n_epochs']:
                     noise = 0.1
 
-                    for agent in agents:
-                        try:
-                            agent.policy.set_noise_level(noise)
-                        except:
-                            pass
+                    for cluster_agents in agents.values():
+                        for agent in cluster_agents:
+                            try:
+                                agent.policy.set_noise_level(noise)
+                            except:
+                                pass
                 if epoch > base_kwargs['n_epochs'] / 10:
                     noise = 0.1
-                    for agent in agents:
-                        try:
-                            agent.policy.set_noise_level(noise)
-                        except:
-                            pass
+                    for cluster_agents in agents.values():
+                        for agent in cluster_agents:
+                            try:
+                                agent.policy.set_noise_level(noise)
+                            except:
+                                pass
                 if epoch > base_kwargs['n_epochs'] / 5:
                     noise = 0.05
-                    for agent in agents:
-                        try:
-                            agent.policy.set_noise_level(noise)
-                        except:
-                            pass
+                    for cluster_agents in agents.values():
+                        for agent in cluster_agents:
+                            try:
+                                agent.policy.set_noise_level(noise)
+                            except:
+                                pass
                 if epoch > base_kwargs['n_epochs'] / 6:
                     noise = 0.01
-                    for agent in agents:
-                        try:
-                            agent.policy.set_noise_level(noise)
-                        except:
-                            pass
+                    for cluster_agents in agents.values():
+                        for agent in cluster_agents:
+                            try:
+                                agent.policy.set_noise_level(noise)
+                            except:
+                                pass
 
                 for j in range(base_kwargs['n_train_repeat']):
                     batch_n = []
                     recent_batch_n = []
                     indices = None
                     recent_indices = None
-                    for i, agent in enumerate(agents):
-                        if i == 0:
-                            batch = agent.pool.random_batch(batch_size)
-                            indices = agent.pool.indices
-                            recent_indices = list(range(agent.pool._top-batch_size, agent.pool._top))
+                    i = -1
+                    for cluster_agents in agents.values():
+                        for agent in cluster_agents:
+                            i += 1
+                            if i == 0:
+                                batch = agent.pool.random_batch(batch_size)
+                                indices = agent.pool.indices
+                                recent_indices = list(range(agent.pool._top-batch_size, agent.pool._top))
 
-                        batch_n.append(agent.pool.random_batch_by_indices(indices))
-                        recent_batch_n.append(agent.pool.random_batch_by_indices(recent_indices))
+                            batch_n.append(agent.pool.random_batch_by_indices(indices))
+                            recent_batch_n.append(agent.pool.random_batch_by_indices(recent_indices))
 
                     target_next_actions_n = []
                     try:
-                        for agent, batch in zip(agents, batch_n):
+                        cluster_agents = [agent for cluster in agents.values() for agent in cluster]
+                        for agent, batch in zip(cluster_agents, batch_n):
                             target_next_actions_n.append(agent._target_policy.get_actions(batch['next_observations']))
                     except:
                         pass
@@ -235,37 +268,43 @@ def main(arglist):
                     recent_opponent_observations_n = []
                     for batch in recent_batch_n:
                         recent_opponent_observations_n.append(batch['observations'])
-
-                    current_actions = [agents[i]._policy.get_actions(batch_n[i]['next_observations'])[0][0] for i in range(agent_num)]
+                    cluster_agents = [agent for cluster in agents.values() for agent in cluster]
+                    current_actions = [cluster_agents[i]._policy.get_actions(batch_n[i]['next_observations'])[0][0] for i in range(agent_num)]
                     all_actions_k = []
-                    for i, agent in enumerate(agents):
-                        if isinstance(agent, MAVBAC):
-                            if agent._k > 0:
-                                batch_actions_k = agent._policy.get_all_actions(batch_n[i]['next_observations'])
-                                actions_k = [a[0][0] for a in batch_actions_k]
-                                all_actions_k.append(';'.join(list(map(str, actions_k))))
+                    i = -1
+                    for cluster_agents in agents.values():
+                        for agent in cluster_agents:
+                            i += 1
+                            if isinstance(agent, MAVBAC):
+                                if agent._k > 0:
+                                    batch_actions_k = agent._policy.get_all_actions(batch_n[i]['next_observations'])
+                                    actions_k = [a[0][0] for a in batch_actions_k]
+                                    all_actions_k.append(';'.join(list(map(str, actions_k))))
                     if len(all_actions_k) > 0:
                         with open('{}/all_actions.csv'.format(policy_dir), 'a') as f:
                             f.write(','.join(list(map(str, all_actions_k))) + '\n')
                     with open('{}/policy.csv'.format(policy_dir), 'a') as f:
                         f.write(','.join(list(map(str, current_actions)))+'\n')
-                    for i, agent in enumerate(agents):
-                        try:
-                            batch_n[i]['next_actions'] = deepcopy(target_next_actions_n[i])
-                        except:
-                            pass
-                        batch_n[i]['opponent_actions'] = np.reshape(np.delete(deepcopy(opponent_actions_n), i, 0), (-1, agent._opponent_action_dim))
-                        if agent.joint:
-                            if agent.opponent_modelling:
-                                batch_n[i]['recent_opponent_observations'] = recent_opponent_observations_n[i]
-                                batch_n[i]['recent_opponent_actions'] = np.reshape(np.delete(deepcopy(recent_opponent_actions_n), i, 0), (-1, agent._opponent_action_dim))
-                                batch_n[i]['opponent_next_actions'] = agent.opponent_policy.get_actions(batch_n[i]['next_observations'])
+                    i = -1
+                    for cluster_agents in agents.values():
+                        for agent in cluster_agents:
+                            i += 1
+                            try:
+                                batch_n[i]['next_actions'] = deepcopy(target_next_actions_n[i])
+                            except:
+                                pass
+                            batch_n[i]['opponent_actions'] = np.reshape(np.delete(deepcopy(opponent_actions_n), i, 0), (-1, agent._opponent_action_dim))
+                            if agent.joint:
+                                if agent.opponent_modelling:
+                                    batch_n[i]['recent_opponent_observations'] = recent_opponent_observations_n[i]
+                                    batch_n[i]['recent_opponent_actions'] = np.reshape(np.delete(deepcopy(recent_opponent_actions_n), i, 0), (-1, agent._opponent_action_dim))
+                                    batch_n[i]['opponent_next_actions'] = agent.opponent_policy.get_actions(batch_n[i]['next_observations'])
+                                else:
+                                    batch_n[i]['opponent_next_actions'] = np.reshape(np.delete(deepcopy(target_next_actions_n), i, 0), (-1, agent._opponent_action_dim))
+                            if isinstance(agent, MAVBAC) or isinstance(agent, MASQL):
+                                agent._do_training(iteration=t + epoch * agent._epoch_length, batch=batch_n[i], annealing=alpha)
                             else:
-                                batch_n[i]['opponent_next_actions'] = np.reshape(np.delete(deepcopy(target_next_actions_n), i, 0), (-1, agent._opponent_action_dim))
-                        if isinstance(agent, MAVBAC) or isinstance(agent, MASQL):
-                            agent._do_training(iteration=t + epoch * agent._epoch_length, batch=batch_n[i], annealing=alpha)
-                        else:
-                            agent._do_training(iteration=t + epoch * agent._epoch_length, batch=batch_n[i])
+                                agent._do_training(iteration=t + epoch * agent._epoch_length, batch=batch_n[i])
                 gt.stamp('train')
 
             logger.pop_prefix()
