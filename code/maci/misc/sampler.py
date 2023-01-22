@@ -189,7 +189,7 @@ class MASampler(SimpleSampler):
         self.env = env
         self.agents = agents
 
-    def sample(self):
+    def sample(self, clusters: dict = None):
         if self._current_observation_n is None:
             self._current_observation_n = self.env.reset()
         action_n = []
@@ -206,13 +206,14 @@ class MASampler(SimpleSampler):
         self._total_samples += 1
 
         i = -1
-        for cluster_agents in self.agents.values():
+        for cluster, cluster_agents in enumerate(self.agents.values()):
             for agent in cluster_agents:
                 i += 1
                 action = deepcopy(action_n[i])
                 if agent.pool.joint:
                     opponent_action = deepcopy(action_n)
-                    del opponent_action[i]
+                    for _ in clusters[cluster]:
+                        del opponent_action[i]
                     opponent_action = np.array(opponent_action).flatten()
                     agent.pool.add_sample(observation=self._current_observation_n[i],
                                           action=action,

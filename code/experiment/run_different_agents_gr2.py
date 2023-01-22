@@ -16,11 +16,59 @@ import os
 
 from keras.backend.tensorflow_backend import set_session
 import tensorflow as tf
+
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
 sess = tf.Session(config=config)
-#specifies which session keras should use
 set_session(sess)
+
+
+def add_agents(names, desired_number):
+    """
+    Adds as many agents to each cluster as the desired_number (another word for number of agents)
+    Parameters:
+        names: string coming from the arg list designing the names of the agents of each cluster separated by '-'
+            between each adjacent clusters and '_' between agents in that cluster.
+        desired_number: total number of agents desired
+
+    """
+    def add_final(clusters, cluster, agent):
+        cluster.append(agent)
+        clusters.append(cluster)
+        cluster = []
+        agent = ""
+        return agent, cluster, clusters
+
+    if names:
+        _agent = ""
+        _clusters = []
+        _cluster = []
+        for j, i in enumerate(names):
+            if i == '_':
+                _cluster.append(_agent)
+                _agent = ""
+            elif i == '-':
+                _agent, _cluster, _clusters = add_final(_clusters, _cluster, _agent)
+            else:
+                _agent += i
+                if j == len(names) - 1:
+                    _agent, _cluster, _clusters = add_final(_clusters, _cluster, _agent)
+        agents_per_cluster = desired_number // len(_clusters)
+        if len(_clusters) == 1:
+            type_of_agent_num = agents_per_cluster
+        else:
+            _new_clusters = []
+            for _cluster in _clusters:
+                type_of_agent_num = agents_per_cluster // len(_cluster)
+                _new_cluster = []
+                for _agent in _cluster:
+                    _new_cluster = _new_cluster + [_agent for _ in range(type_of_agent_num)]
+                if len(_new_cluster) < agents_per_cluster:
+                    while len(_new_cluster) < agents_per_cluster:
+                        _new_cluster.append(_new_cluster[-1])
+                _new_cluster = '_'.join(_new_cluster)
+                _new_clusters.append(_new_cluster)
+        return '-'.join(_new_clusters)
 
 
 def get_particle_game(particle_game_name, arglist):
@@ -36,28 +84,31 @@ def get_particle_game(particle_game_name, arglist):
     model_names = [model_names_setting[1]] * adv_agent_num + [model_names_setting[0]] * (agent_num - adv_agent_num)
     return env, agent_num, model_name, model_names
 
+
 def parse_args():
     """Meant for arguments coming from a CLI """
-    
+
     parser = argparse.ArgumentParser("Reinforcement Learning experiments for multi-agent environments")
     # Environment
     # ['particle-simple_spread', 'particle-simple_adversary', 'particle-simple_tag', 'particle-simple_push']
     # matrix-prison , matrix-prison
     # pbeauty
     parser.add_argument('-g', "--game_name", type=str, default="pbeauty", help="name of the game")
-    parser.add_argument('-p', "--p", type=float, default=1.1, help="p")
+    parser.add_argument('-p', "--p", type=float, default=2 / 3, help="p")
     parser.add_argument('-mu', "--mu", type=float, default=1.5, help="mu")
     parser.add_argument('-r', "--reward_type", type=str, default="abs", help="reward type")
-    parser.add_argument('-mp', "--max_path_length", type=int, default=1, help="path len")
-    parser.add_argument('-ms', "--max_steps", type=int, default=2000, help="number of epochs")
+    parser.add_argument('-mp', "--max_path_length", type=int, default=1, help="path length")
+    parser.add_argument('-ms', "--max_steps", type=int, default=20000, help="number of epochs")
     parser.add_argument('-me', "--memory", type=int, default=0, help="memory")
     parser.add_argument('-n', "--n", type=int, default=3, help="number of agents per cluster")
     parser.add_argument('-bs', "--batch_size", type=int, default=64, help="batch size")
     parser.add_argument('-hm', "--hidden_size", type=int, default=100, help="hidden size")
     parser.add_argument('-re', "--repeat", type=bool, default=False, help="repeat or not")
     parser.add_argument('-a', "--aux", type=bool, default=True, help="")
-    parser.add_argument('-m', "--model_names_setting", type=str, default='PR2AC4_PR2AC3_PR2AC2-MADDPG_MADDPG_MADDPG', help="models setting agent vs adv")
-    parser.add_argument('-c', "--number_of_clusters", type=int, default='1', help="number of clusters")
+    parser.add_argument('-m', "--model_names_setting", type=str,
+                        default='PR2AC4_PR2AC3_PR2AC2-MADDPG_MADDPG_MADDPG-DDPG_DDPG_DDPG-MASQL',
+                        help="models setting agent vs adv")
+    parser.add_argument('-c', "--number_of_clusters", type=int, default='3', help="number of clusters")
     return parser.parse_args()
 
 
@@ -66,12 +117,23 @@ def main(arglist):
     # 'abs', 'one'
     reward_type = arglist.reward_type
     p = arglist.p
-    agent_num = len(arglist.model_names_setting.split('-')) * arglist.n
+    clusters = len(arglist.model_names_setting.split('-')) if len(arglist.model_names_setting.split('-')) > 1 else 2
+    agent_num = clusters * arglist.n
+    agents_per_cluster = agent_num // clusters
+    clusters_schema = dict()
+    i = -1
+    for _cluster in range(clusters):
+        clusters_schema[_cluster] = []
+        for _agent in range(agents_per_cluster):
+            i += 1
+            clusters_schema[_cluster].append(i)
+
+    agent_names_per_cluster = add_agents(arglist.model_names_setting, agent_num)
+    # agent_names_per_cluster = arglist.model_names_setting
     u_range = 1.
     k = 0
-    clusters = arglist.number_of_clusters if arglist.number_of_clusters > 1 else 2
-    print(arglist.aux, 'arglist.aux')
-    model_names_setting_clusters = arglist.model_names_setting.split('-')
+
+    model_names_setting_clusters = agent_names_per_cluster.split('-')
     model_names = [i.split('_') for i in model_names_setting_clusters]
     model_name = ""
     for j, i in enumerate(model_names):
@@ -107,13 +169,12 @@ def main(arglist):
     suffix = '{}/{}/{}/{}'.format(path_prefix, agent_num, model_name, timestamp)
 
 
-    logger.add_tabular_output('./log/{}.csv'.format(suffix))
-    snapshot_dir = './snapshot/{}'.format(suffix)
-    policy_dir = './policy/{}'.format(suffix)
+    logger.add_tabular_output('./log/{}.csv'.format(suffix[:10]))
+    snapshot_dir = './snapshot/{}'.format(suffix[:10])
+    policy_dir = './policy/{}'.format(suffix[:10])
     os.makedirs(snapshot_dir, exist_ok=True)
     os.makedirs(policy_dir, exist_ok=True)
     logger.set_snapshot_dir(snapshot_dir)
-
 
     agents = dict()
     M = arglist.hidden_size
@@ -144,7 +205,8 @@ def main(arglist):
                     mu = arglist.mu
                     if 'G' in model_name:
                         g = True
-                    agent = pr2ac_agent(model_name, i, env, M, u_range, base_kwargs, k=k, g=g, mu=mu, game_name=game_name, aux=arglist.aux)
+                    agent = pr2ac_agent(model_name, i, env, M, u_range, base_kwargs, k=k, g=g, mu=mu,
+                                        game_name=game_name, aux=arglist.aux)
                 elif model_name == 'MASQL':
                     cluster = "masql"
                     if cluster not in agents.keys():
@@ -169,7 +231,8 @@ def main(arglist):
                             agents[cluster] = []
                         joint = True
                         opponent_modelling = True
-                    agent = ddpg_agent(joint, opponent_modelling, model_names, i, env, M, u_range, base_kwargs, game_name=game_name)
+                    agent = ddpg_agent(joint, opponent_modelling, model_names, i, env, M, u_range, base_kwargs,
+                                       game_name=game_name)
 
                 agents[cluster].append(agent)
 
@@ -185,13 +248,17 @@ def main(arglist):
         noise = 1.
         alpha = .5
 
-
         for cluster_agents in agents.values():
             for agent in cluster_agents:
                 try:
                     agent.policy.set_noise_level(noise)
                 except:
                     pass
+
+        batch_n = []
+        recent_batch_n = []
+        indices = None
+        recent_indices = None
 
         for epoch in gt.timed_for(range(base_kwargs['n_epochs'] + 1)):
             logger.push_prefix('Epoch #%d | ' % epoch)
@@ -200,7 +267,7 @@ def main(arglist):
                 if not initial_exploration_done:
                     if epoch >= 1000:
                         initial_exploration_done = True
-                sampler.sample()
+                sampler.sample(clusters_schema)
                 if not initial_exploration_done:
                     continue
                 gt.stamp('sample')
@@ -239,21 +306,22 @@ def main(arglist):
                                 pass
 
                 for j in range(base_kwargs['n_train_repeat']):
-                    batch_n = []
-                    recent_batch_n = []
-                    indices = None
-                    recent_indices = None
-                    i = -1
-                    for cluster_agents in agents.values():
-                        for agent in cluster_agents:
-                            i += 1
-                            if i == 0:
-                                batch = agent.pool.random_batch(batch_size)
-                                indices = agent.pool.indices
-                                recent_indices = list(range(agent.pool._top-batch_size, agent.pool._top))
+                    if len(batch_n) == 0:
+                        batch_n = []
+                        recent_batch_n = []
+                        indices = None
+                        recent_indices = None
+                        i = -1
+                        for cluster_agents in agents.values():
+                            for agent in cluster_agents:
+                                i += 1
+                                if i == 0:
+                                    batch = agent.pool.random_batch(batch_size)
+                                    indices = agent.pool.indices
+                                    recent_indices = list(range(agent.pool._top - batch_size, agent.pool._top))
 
-                            batch_n.append(agent.pool.random_batch_by_indices(indices))
-                            recent_batch_n.append(agent.pool.random_batch_by_indices(recent_indices))
+                                batch_n.append(agent.pool.random_batch_by_indices(indices))
+                                recent_batch_n.append(agent.pool.random_batch_by_indices(recent_indices))
 
                     target_next_actions_n = []
                     try:
@@ -266,12 +334,13 @@ def main(arglist):
                     opponent_actions_n = np.array([batch['actions'] for batch in batch_n])
                     recent_opponent_actions_n = np.array([batch['actions'] for batch in recent_batch_n])
 
-                    ####### figure out
+                    # _____figure out
                     recent_opponent_observations_n = []
                     for batch in recent_batch_n:
                         recent_opponent_observations_n.append(batch['observations'])
                     cluster_agents = [agent for cluster in agents.values() for agent in cluster]
-                    current_actions = [cluster_agents[i]._policy.get_actions(batch_n[i]['next_observations'])[0][0] for i in range(agent_num)]
+                    current_actions = [cluster_agents[i]._policy.get_actions(batch_n[i]['next_observations'])[0][0] for i
+                                       in range(agent_num)]
                     all_actions_k = []
                     i = -1
                     for cluster_agents in agents.values():
@@ -286,7 +355,7 @@ def main(arglist):
                         with open('{}/all_actions.csv'.format(policy_dir), 'a') as f:
                             f.write(','.join(list(map(str, all_actions_k))) + '\n')
                     with open('{}/policy.csv'.format(policy_dir), 'a') as f:
-                        f.write(','.join(list(map(str, current_actions)))+'\n')
+                        f.write(','.join(list(map(str, current_actions))) + '\n')
                     i = -1
                     for cluster_agents in agents.values():
                         for agent in cluster_agents:
@@ -295,23 +364,29 @@ def main(arglist):
                                 batch_n[i]['next_actions'] = deepcopy(target_next_actions_n[i])
                             except:
                                 pass
-                            batch_n[i]['opponent_actions'] = np.reshape(np.delete(deepcopy(opponent_actions_n), i, 0), (-1, agent._opponent_action_dim))
+                            batch_n[i]['opponent_actions'] = np.reshape(np.delete(deepcopy(opponent_actions_n), i, 0),
+                                                                        (-1, agent._opponent_action_dim))
                             if agent.joint:
                                 if agent.opponent_modelling:
                                     batch_n[i]['recent_opponent_observations'] = recent_opponent_observations_n[i]
-                                    batch_n[i]['recent_opponent_actions'] = np.reshape(np.delete(deepcopy(recent_opponent_actions_n), i, 0), (-1, agent._opponent_action_dim))
-                                    batch_n[i]['opponent_next_actions'] = agent.opponent_policy.get_actions(batch_n[i]['next_observations'])
+                                    batch_n[i]['recent_opponent_actions'] = np.reshape(
+                                        np.delete(deepcopy(recent_opponent_actions_n), i, 0),
+                                        (-1, agent._opponent_action_dim))
+                                    batch_n[i]['opponent_next_actions'] = agent.opponent_policy.get_actions(
+                                        batch_n[i]['next_observations'])
                                 else:
-                                    batch_n[i]['opponent_next_actions'] = np.reshape(np.delete(deepcopy(target_next_actions_n), i, 0), (-1, agent._opponent_action_dim))
+                                    batch_n[i]['opponent_next_actions'] = np.reshape(
+                                        np.delete(deepcopy(target_next_actions_n), i, 0),
+                                        (-1, agent._opponent_action_dim))
                             if isinstance(agent, MAVBAC) or isinstance(agent, MASQL):
-                                agent._do_training(iteration=t + epoch * agent._epoch_length, batch=batch_n[i], annealing=alpha)
+                                agent._do_training(iteration=t + epoch * agent._epoch_length, batch=batch_n[i],
+                                                   annealing=alpha)
                             else:
                                 agent._do_training(iteration=t + epoch * agent._epoch_length, batch=batch_n[i])
                 gt.stamp('train')
 
             logger.pop_prefix()
             sampler.terminate()
-
 
 
 if __name__ == '__main__':
