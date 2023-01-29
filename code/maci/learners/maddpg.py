@@ -46,7 +46,8 @@ class MADDPG(MARLAlgorithm):
             train_qf=True,
             train_policy=True,
             joint_policy=False,
-            SGA=False
+            SGA=False,
+            clusters_schema=None
     ):
         super(MADDPG, self).__init__(**base_kwargs)
 
@@ -80,9 +81,9 @@ class MADDPG(MARLAlgorithm):
         self.joint_policy = joint_policy
 
         self._observation_dim = self.env.observation_spaces[self._agent_id].flat_dim
-        self._opponent_observation_dim = self.env.observation_spaces.opponent_flat_dim(self._agent_id)
+        self._opponent_observation_dim = self.env.observation_spaces.opponent_flat_dim(self._agent_id, _not_joint=False, _clusters=clusters_schema)
         self._action_dim = self.env.action_spaces[self._agent_id].flat_dim
-        self._opponent_action_dim = self.env.action_spaces.opponent_flat_dim(self._agent_id)
+        self._opponent_action_dim = self.env.action_spaces.opponent_flat_dim(self._agent_id, _not_joint=False, _clusters=clusters_schema)
 
         self._create_placeholders()
 

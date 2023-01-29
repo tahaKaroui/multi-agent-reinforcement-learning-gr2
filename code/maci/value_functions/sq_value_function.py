@@ -55,7 +55,7 @@ class NNQFunction(MLPFunction):
                  action_space=None,
                  hidden_layer_sizes=(100, 100),
                  name='q_function',
-                 joint=False, agent_id=None):
+                 joint=False, agent_id=None, _clusters=None, not_target=False):
         Serializable.quick_init(self, locals())
         self._name = name + '_agent_{}'.format(agent_id)
         if env_spec is None:
@@ -65,6 +65,17 @@ class NNQFunction(MLPFunction):
             assert agent_id is not None
             self._observation_dim = env_spec.observation_space[agent_id].flat_dim
             if joint:
+                flat_dims = 1
+                _cluster_key = -1
+                for _key, _cluster in _clusters.items():
+                    if agent_id in _cluster:
+                        _cluster_key = _key
+
+                for _agent in _clusters[_cluster_key]:
+                    flat_dims -= 1
+
+                self._action_dim = env_spec.action_space.flat_dim + flat_dims
+            elif joint and not not_target:
                 self._action_dim = env_spec.action_space.flat_dim
             else:
                 self._action_dim = env_spec.action_space[agent_id].flat_dim

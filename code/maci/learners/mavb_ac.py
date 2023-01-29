@@ -299,8 +299,6 @@ class MAVBAC(MARLAlgorithm):
         print(actions.shape.as_list(), [None, self._kernel_n_particles, self._opponent_action_dim])
         assert_shape(actions,
                      [None, self._kernel_n_particles, self._opponent_action_dim])
-
-
         # SVGD requires computing two empirical expectations over actions
         # (see Appendix C1.1.). To that end, we first sample a single set of
         # actions, and later split them into two sets: `fixed_actions` are used

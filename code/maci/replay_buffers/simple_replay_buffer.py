@@ -8,7 +8,7 @@ from maci.environments.env_spec import MAEnvSpec
 
 class SimpleReplayBuffer(ReplayBuffer, Serializable):
     """Replay buffer storing experience transitions for single and multi-agent RL."""
-    def __init__(self, env_spec, max_replay_buffer_size, joint=False, agent_id=None):
+    def __init__(self, env_spec, max_replay_buffer_size, joint=False, agent_id=None, _clusters=None):
 
         super(SimpleReplayBuffer, self).__init__()
         Serializable.quick_init(self, locals())
@@ -22,8 +22,7 @@ class SimpleReplayBuffer(ReplayBuffer, Serializable):
             self._observation_dim = env_spec.observation_space[agent_id].flat_dim
             self._action_dim = env_spec.action_space[agent_id].flat_dim
             if joint:
-                self._opponent_action_dim = env_spec.action_space.opponent_flat_dim(agent_id)
-                print(agent_id, self._opponent_action_dim )
+                self._opponent_action_dim = env_spec.action_space.opponent_flat_dim(agent_id, _not_joint=False, _clusters=_clusters)
                 self._opponent_actions = np.zeros((max_replay_buffer_size, self._opponent_action_dim ))
         else:
             self._action_dim = env_spec.action_space.flat_dim

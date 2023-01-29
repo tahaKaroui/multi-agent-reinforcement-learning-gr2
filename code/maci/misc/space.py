@@ -92,17 +92,38 @@ class MASpace(Space):
         return self.agent_spaces[i]
 
     @property
-    def flat_dim(self):
+    def flat_dim(self, i=0, _not_joint=True, _clusters=None):
         """
         The dimension of the flattened vector of the tensor representation
         """
         flat_dims = 0
         for space in self.agent_spaces:
             flat_dims += space.flat_dim
-        return flat_dims
+        if _not_joint:
+            return flat_dims
+        else:
+            _cluster_key = -1
+            for _key, _cluster in _clusters.items():
+                if i in _cluster:
+                    _cluster_key = _key
 
-    def opponent_flat_dim(self, i):
-        return self.flat_dim - self[i].flat_dim
+            flat_dims += 1
+            for _agent in _clusters[_cluster_key]:
+                flat_dims -= 1
+            return self.flat_dim
+
+    def opponent_flat_dim(self, i, _not_joint=True, _clusters=None):
+        if _not_joint:
+            return self.flat_dim - self[i].flat_dim
+        else:
+            _cluster_key = -1
+            for _key, _cluster in _clusters.items():
+                if i in _cluster:
+                    _cluster_key = _key
+            s = 0
+            for _agent in _clusters[_cluster_key]:
+                s += self[_agent].flat_dim
+            return self.flat_dim - s
 
     def __eq__(self, other):
         if self.agent_num != other.agent_num:

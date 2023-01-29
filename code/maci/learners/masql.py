@@ -47,7 +47,8 @@ class MASQL(MARLAlgorithm):
             train_policy=True,
             joint_policy=True,
             opponent_action_range=None,
-            opponent_action_range_normalize=True
+            opponent_action_range_normalize=True,
+            clusters_schema=None
     ):
         super(MASQL, self).__init__(**base_kwargs)
 
@@ -85,7 +86,7 @@ class MASQL(MARLAlgorithm):
         self._observation_dim = self.env.observation_spaces[self.agent_id].flat_dim
         self._action_dim = self.env.action_spaces[self.agent_id].flat_dim
         # just for two agent case
-        self._opponent_action_dim = self.env.action_spaces.opponent_flat_dim(self.agent_id)
+        self._opponent_action_dim = self.env.action_spaces.opponent_flat_dim(agent_id, _not_joint=False, _clusters=clusters_schema)
 
         self._create_placeholders()
 

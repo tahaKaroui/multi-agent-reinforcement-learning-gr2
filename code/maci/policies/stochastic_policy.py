@@ -24,7 +24,10 @@ class StochasticNNPolicy(NNPolicy, Serializable):
                  u_range=1.,
                  shift=None,
                  scale=None,
-                 joint=False, agent_id=None, sampling=False):
+                 joint=False,
+                 agent_id=None,
+                 sampling=False,
+                 _clusters=None):
         Serializable.quick_init(self, locals())
         if env_spec is None:
             self._observation_dim = observation_space.flat_dim
@@ -33,7 +36,16 @@ class StochasticNNPolicy(NNPolicy, Serializable):
             assert agent_id is not None
             self._observation_dim = env_spec.observation_space[agent_id].flat_dim
             if joint:
-                self._action_dim = env_spec.action_space.flat_dim
+                flat_dims = 1
+                _cluster_key = -1
+                for _key, _cluster in _clusters.items():
+                    if agent_id in _cluster:
+                        _cluster_key = _key
+
+                for _agent in _clusters[_cluster_key]:
+                    flat_dims -= 1
+
+                self._action_dim = env_spec.action_space.flat_dim + flat_dims
             else:
                 self._action_dim = env_spec.action_space[agent_id].flat_dim
         else:

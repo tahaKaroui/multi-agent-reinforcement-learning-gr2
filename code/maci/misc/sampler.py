@@ -68,10 +68,11 @@ def rollouts(env, policy, path_length, n_paths):
 
 
 class Sampler(object):
-    def __init__(self, max_path_length, min_pool_size, batch_size):
+    def __init__(self, max_path_length, min_pool_size, batch_size, clusters_schema):
         self._max_path_length = max_path_length
         self._min_pool_size = min_pool_size
         self._batch_size = batch_size
+        self._clusters_schema = clusters_schema
 
         self.env = None
         self.policy = None
@@ -110,6 +111,8 @@ class SimpleSampler(Sampler):
         self._path_return = 0
         self._last_path_return = 0
         self._max_path_return = -np.inf
+        self._total_path_return = 0
+        self._mean_path_return = 0
         self._n_episodes = 0
         self._current_observation = None
         self._total_samples = 0
@@ -163,6 +166,8 @@ class MASampler(SimpleSampler):
         self._path_return = np.array([0.] * self.agent_num, dtype=np.float32)
         self._last_path_return = np.array([0.] * self.agent_num, dtype=np.float32)
         self._max_path_return = np.array([-np.inf] * self.agent_num, dtype=np.float32)
+        self._total_path_return = np.array([0.] * self.agent_num, dtype=np.float32)
+        self._mean_path_return = np.array([0.] * self.agent_num, dtype=np.float32)
         self._n_episodes = 0
         self._total_samples = 0
 
@@ -200,7 +205,7 @@ class MASampler(SimpleSampler):
                 action_n.append(np.array(action)[0:agent._action_dim])
             else:
                 action_n.append(np.array(action))
-        next_observation_n, reward_n, done_n, info = self.env.step(action_n)
+        next_observation_n, reward_n, done_n, info = self.env.step(action_n, clusters)
         self._path_length += 1
         self._path_return += np.array(reward_n, dtype=np.float32)
         self._total_samples += 1
@@ -213,7 +218,7 @@ class MASampler(SimpleSampler):
                 if agent.pool.joint:
                     opponent_action = deepcopy(action_n)
                     for _ in clusters[cluster]:
-                        del opponent_action[i]
+                        del opponent_action[min(i, len(cluster_agents) - 1)]
                     opponent_action = np.array(opponent_action).flatten()
                     agent.pool.add_sample(observation=self._current_observation_n[i],
                                           action=action,
@@ -231,14 +236,11 @@ class MASampler(SimpleSampler):
         if np.all(done_n) or self._path_length >= self._max_path_length:
             self._current_observation_n = self.env.reset()
             self._max_path_return = np.maximum(self._max_path_return, self._path_return)
-            self._mean_path_return = self._path_return / self._path_length
+            self._total_path_return += self._path_return
+            self._mean_path_return = self._total_path_return / self._path_length
             self._last_path_return = self._path_return
-
-            self._path_length = 0
-
             self._path_return = np.array([0.] * self.agent_num, dtype=np.float32)
             self._n_episodes += 1
-
             self.log_diagnostics()
             logger.dump_tabular(with_prefix=False)
 
@@ -246,10 +248,19 @@ class MASampler(SimpleSampler):
             self._current_observation_n = next_observation_n
 
     def log_diagnostics(self):
-        for i in range(self.agent_num):
-            logger.record_tabular('max-path-return_agent_{}'.format(i), self._max_path_return[i])
-            logger.record_tabular('mean-path-return_agent_{}'.format(i), self._mean_path_return[i])
-            logger.record_tabular('last-path-return_agent_{}'.format(i), self._last_path_return[i])
+        for _key, cluster in self._clusters_schema.items():
+            _max_cluster_result = np.array([0.] * len(self._clusters_schema.keys()), dtype=np.float32)
+            _mean_cluster_result = np.array([0.] * len(self._clusters_schema.keys()), dtype=np.float32)
+            _last_cluster_result = np.array([0.] * len(self._clusters_schema.keys()), dtype=np.float32)
+            for i in cluster:
+                _max_cluster_result += self._max_path_return[i]
+                _mean_cluster_result += self._mean_path_return[i]
+                _last_cluster_result += self._last_path_return[i]
+
+            logger.record_tabular('max-path-return_cluster_{}'.format(_key + 1), _max_cluster_result / len(cluster))
+            logger.record_tabular('mean-path-return_cluster_{}'.format(_key + 1), _mean_cluster_result / len(cluster))
+            logger.record_tabular('last-path-return_cluster_{}'.format(_key + 1), _last_cluster_result / len(cluster))
+
         logger.record_tabular('episodes', self._n_episodes)
         logger.record_tabular('total-samples', self._total_samples)
 

@@ -22,8 +22,18 @@ class PBeautyGame(Serializable):
         self.t = 0
         self.rewards = np.zeros((self.agent_num,))
 
-    def step(self, actions):
+    def step(self, actions, clusters: dict = {}):
         assert len(actions) == self.agent_num
+        i = -1
+        _final_actions = [np.zeros(actions[0].shape)] * len(clusters.keys())
+        for j, _cluster in enumerate(clusters.values()):
+            _current_actions = np.zeros(actions[i].shape)
+            for _agent in _cluster:
+                i += 1
+                np.add(_current_actions, actions[i], out=_current_actions)
+            _current_actions /= len(_cluster)
+            _final_actions[j] = _current_actions
+
         actions = np.array(actions).reshape((self.agent_num,))
         reward_n = np.zeros((self.agent_num,))
         if self.game_name == 'pbeauty':
