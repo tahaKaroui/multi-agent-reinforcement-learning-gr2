@@ -248,6 +248,11 @@ class MASampler(SimpleSampler):
             self._current_observation_n = next_observation_n
 
     def log_diagnostics(self):
+        for i in range(self.agent_num):
+            logger.record_tabular('max-path-return_agent_{}'.format(i), self._max_path_return[i])
+            logger.record_tabular('mean-path-return_agent_{}'.format(i), self._mean_path_return[i])
+            logger.record_tabular('last-path-return_agent_{}'.format(i), self._last_path_return[i])
+
         for _key, cluster in self._clusters_schema.items():
             _max_cluster_result = np.array([0.] * len(self._clusters_schema.keys()), dtype=np.float32)
             _mean_cluster_result = np.array([0.] * len(self._clusters_schema.keys()), dtype=np.float32)
